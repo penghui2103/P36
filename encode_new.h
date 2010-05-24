@@ -1,6 +1,6 @@
 int encode_init(frame_info *frame);
-void scalefactor_calc_new (double sb_sample[][3][SCALE_BLOCK][SBLIMIT],
-			   unsigned int scalar[][3][SBLIMIT], int nch,
+void scalefactor_calc_new (INT32 sb_sample[][3][SCALE_BLOCK][SBLIMIT],
+			   UINT32 scalar[][3][SBLIMIT], int nch,
 			   int sblimit);
 
 INLINE double mod (double a);
@@ -8,8 +8,8 @@ INLINE double mod (double a);
 void combine_LR_new (double sb_sample[2][3][SCALE_BLOCK][SBLIMIT],
 		     double joint_sample[3][SCALE_BLOCK][SBLIMIT], int sblimit);
 
-void find_sf_max (unsigned int sf_index[2][3][SBLIMIT], frame_info * frame,
-		  double sf_max[2][SBLIMIT]);
+void find_sf_max (UINT32 sf_index[2][3][SBLIMIT], frame_info * frame,
+		  INT32 sf_max[2][SBLIMIT]);
 
 void sf_transmission_pattern (unsigned int sf_index[2][3][SBLIMIT],
 			      unsigned int sf_selectinfo[2][SBLIMIT],

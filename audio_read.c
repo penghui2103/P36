@@ -81,7 +81,7 @@ get_audio (FILE * musicin, short buffer[2][1152], unsigned long num_samples,
 	   int nch, frame_header *header)
 {
   int j;
-  short insamp[2304];
+  short insamp[2304 /* Two channel's data = 2*1152 */];
   unsigned long samples_read;
 
   if (nch == 2) {		/* stereo */

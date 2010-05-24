@@ -14,10 +14,10 @@
 #define UINT64	unsigned int int
 
 
-#define WIN_COEFF_MUL 1e9
-#define WIN_COEFF_DIV 1e9
-
-#define DATA_SCALE	2^31
+#define WIN_COEFF_SHIFT 18
+#define DCT_COEFF_SHIFT 21
+#define WIN_FILTER_RESULT_SHIFT 16
+#define SCALE_SHIFT	15     //32768
 
 
 #endif

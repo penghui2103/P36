@@ -9,7 +9,7 @@
 #include "enwindow.h"
 #include "subband.h"
 
-
+#include "defines.h"
 #ifdef REFERENCECODE
 /************************************************************************
 *
@@ -122,18 +122,29 @@ void filter_subband (double z[HAN_SIZE], double s[SBLIMIT])
 }
 #endif //REFERENCECODE
 
-void create_dct_matrix (double filter[16][32])
+void create_dct_matrix (INT32 filter[16][32])
 {
   register int i, k;
 
   for (i = 0; i < 16; i++)
     for (k = 0; k < 32; k++) {
-      if ((filter[i][k] = 1e9 * cos ((double) ((2 * i + 1) * k * PI64))) >= 0)
-	modf (filter[i][k] + 0.5, &filter[i][k]);
-      else
-	modf (filter[i][k] - 0.5, &filter[i][k]);
-      filter[i][k] *= 1e-9;
+		filter[i][k] = (2^DCT_COEFF_SHIFT) * cos ((double) ((2 * i + 1) * k * PI64));
+      //if ((filter[i][k] = (2^DCT_COEFF_SHIFT) * cos ((double) ((2 * i + 1) * k * PI64))) >= 0)
+	//modf (filter[i][k] + 0.5, &filter[i][k]);
+      //else
+	//modf (filter[i][k] - 0.5, &filter[i][k]);
+     
+      // CPH: we need fixed point filter table, so that do not divide it again.
+      // filter[i][k] *= 1e-9;
     }
+}
+
+void create_fixed_enwindow(double enw[512], INT32 fixedenw[512])
+{
+	INT32 i;
+    for(i = 0; i < 512; i++) {
+		fixedenw[i] = enw[i] * (2^WIN_COEFF_SHIFT);
+	}
 }
 
 
@@ -194,22 +205,22 @@ void window_subband12 (short **buffer, int ch)
 }
 #endif /* NEWWS */
 
-
+INT32 FixedEnw[512]; // CPH: allocate for fixed window coeff
 //____________________________________________________________________________
 //____ WindowFilterSubband() _________________________________________
 //____ RS&A - Feb 2003 _______________________________________________________
-void WindowFilterSubband (short *pBuffer, int ch, double s[SBLIMIT])
+void WindowFilterSubband (INT16 *pBuffer, int ch, INT32 s[SBLIMIT])
 {
   register int i, j;
   int pa, pb, pc, pd, pe, pf, pg, ph;
-  double t;
-  double *dp, *dp2;
-  double *pEnw;
-  double y[64];
-  double yprime[32];
+  INT32 t;
+  INT32 *dp, *dp2;
+  INT32 *pEnw, *pFixedEnw;
+  INT32 y[64];
+  INT32 yprime[32];
 
-  static double x[2][512];
-  static double m[16][32];
+  static INT32 x[2][512];
+  static INT32 m[16][32];
   static int init = 0;
   static int off[2];
   static int half[2];
@@ -224,13 +235,14 @@ void WindowFilterSubband (short *pBuffer, int ch, double s[SBLIMIT])
       for (j = 0; j < 512; j++)
 	x[i][j] = 0;
     create_dct_matrix (m);
+    create_fixed_enwindow(enwindow, FixedEnw);
   }
 
   dp = x[ch] + off[ch] + half[ch] * 256;
 
   /* replace 32 oldest samples with 32 new samples */
   for (i = 0; i < 32; i++)
-    dp[(31 - i) * 8] = (double) pBuffer[i] / SCALE;
+    dp[(31 - i) * 8] = (INT32) pBuffer[i]; //CPH: fixed point should not divide the SCALE
 
   // looks like "school example" but does faster ...
   dp = (x[ch] + half[ch] * 256);
@@ -243,17 +255,18 @@ void WindowFilterSubband (short *pBuffer, int ch, double s[SBLIMIT])
   pg = (pa + 6) % 8;
   ph = (pa + 7) % 8;
 
+	//CPH: If the t is long long, then shift can be done after the multiply-adding operations are all done.
   for (i = 0; i < 32; i++) {
     dp2 = dp + i * 8;
-    pEnw = enwindow + i;
-    t = dp2[pa] * pEnw[0];
-    t += dp2[pb] * pEnw[64];
-    t += dp2[pc] * pEnw[128];
-    t += dp2[pd] * pEnw[192];
-    t += dp2[pe] * pEnw[256];
-    t += dp2[pf] * pEnw[320];
-    t += dp2[pg] * pEnw[384];
-    t += dp2[ph] * pEnw[448];
+    pEnw = FixedEnw + i;
+    t = dp2[pa] * pEnw[0] >> WIN_FILTER_RESULT_SHIFT; 
+    t += dp2[pb] * pEnw[64] >> WIN_FILTER_RESULT_SHIFT;
+    t += dp2[pc] * pEnw[128] >> WIN_FILTER_RESULT_SHIFT;
+    t += dp2[pd] * pEnw[192] >> WIN_FILTER_RESULT_SHIFT;
+    t += dp2[pe] * pEnw[256] >> WIN_FILTER_RESULT_SHIFT;
+    t += dp2[pf] * pEnw[320] >> WIN_FILTER_RESULT_SHIFT;
+    t += dp2[pg] * pEnw[384] >> WIN_FILTER_RESULT_SHIFT;
+    t += dp2[ph] * pEnw[448] >> WIN_FILTER_RESULT_SHIFT;
     y[i] = t;
   }
 
@@ -271,15 +284,15 @@ void WindowFilterSubband (short *pBuffer, int ch, double s[SBLIMIT])
 
   for (i = 0; i < 32; i++) {
     dp2 = dp + i * 8;
-    pEnw = enwindow + i + 32;
+    pEnw = FixedEnw + i + 32;
     t = dp2[pa] * pEnw[0];
-    t += dp2[pb] * pEnw[64];
-    t += dp2[pc] * pEnw[128];
-    t += dp2[pd] * pEnw[192];
-    t += dp2[pe] * pEnw[256];
-    t += dp2[pf] * pEnw[320];
-    t += dp2[pg] * pEnw[384];
-    t += dp2[ph] * pEnw[448];
+    t += dp2[pb] * pEnw[64] >> WIN_FILTER_RESULT_SHIFT;
+    t += dp2[pc] * pEnw[128] >> WIN_FILTER_RESULT_SHIFT;
+    t += dp2[pd] * pEnw[192] >> WIN_FILTER_RESULT_SHIFT;
+    t += dp2[pe] * pEnw[256] >> WIN_FILTER_RESULT_SHIFT;
+    t += dp2[pf] * pEnw[320] >> WIN_FILTER_RESULT_SHIFT;
+    t += dp2[pg] * pEnw[384] >> WIN_FILTER_RESULT_SHIFT;
+    t += dp2[ph] * pEnw[448] >> WIN_FILTER_RESULT_SHIFT;
     y[i + 32] = t;
     // 1st pass on Michael Chen´s dct filter
     if (i > 0 && i < 17)
@@ -291,14 +304,16 @@ void WindowFilterSubband (short *pBuffer, int ch, double s[SBLIMIT])
     yprime[i] = y[i + 16] - y[80 - i];
 
   for (i = 15; i >= 0; i--) {
-    register double s0 = 0.0, s1 = 0.0;
-    register double *mp = m[i];
-    register double *xinp = yprime;
+    register INT32 s0 = 0, s1 = 0;
+    register INT32 *mp = m[i];
+    register INT32 *xinp = yprime;
     for (j = 0; j < 8; j++) {
-      s0 += *mp++ * *xinp++;
-      s1 += *mp++ * *xinp++;
-      s0 += *mp++ * *xinp++;
-      s1 += *mp++ * *xinp++;
+	//CPH: dct cosine table is enlarged by 2^DCT_COEFF_SHIFT.
+	// To keep the value same as after windowing, we right shift it back.
+      s0 += (*mp++ * *xinp++) >> DCT_COEFF_SHIFT;
+      s1 += (*mp++ * *xinp++) >> DCT_COEFF_SHIFT;
+      s0 += (*mp++ * *xinp++) >> DCT_COEFF_SHIFT;
+      s1 += (*mp++ * *xinp++) >> DCT_COEFF_SHIFT;
     }
     s[i] = s0 + s1;
     s[31 - i] = s0 - s1;

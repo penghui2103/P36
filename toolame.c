@@ -89,30 +89,34 @@ void global_init (void)
 
 int frameNum = 0;
 
+#include "defines.h"
+
 int main (int argc, char **argv)
 {
-  typedef double SBS[2][3][SCALE_BLOCK/* 12 */][SBLIMIT /* 32 */];
+  typedef /*double*/ INT32 SBS[2][3][SCALE_BLOCK/* 12 */][SBLIMIT /* 32 */];
   SBS *sb_sample;
-  typedef double JSBS[3][SCALE_BLOCK][SBLIMIT];
+  typedef /*double*/ INT32 JSBS[3][SCALE_BLOCK][SBLIMIT];
   JSBS *j_sample;
-  typedef double IN[2][HAN_SIZE];
+  typedef /*double*/ INT32 IN[2][HAN_SIZE/* 512 */];
   IN *win_que;
-  typedef unsigned int SUB[2][3][SCALE_BLOCK][SBLIMIT];
+  typedef /*unsigned int*/ UINT32 SUB[2][3][SCALE_BLOCK][SBLIMIT];
   SUB *subband;
 
   frame_info frame;
   frame_header header;
   char original_file_name[MAX_NAME_SIZE];
   char encoded_file_name[MAX_NAME_SIZE];
-  short **win_buf;
-  static short buffer[2][1152];
-  static unsigned int bit_alloc[2][SBLIMIT], scfsi[2][SBLIMIT];
-  static unsigned int scalar[2][3][SBLIMIT], j_scale[3][SBLIMIT];
-  static double smr[2][SBLIMIT], lgmin[2][SBLIMIT], max_sc[2][SBLIMIT];
+  /*short*/INT16 **win_buf;
+  static /*short*/ INT16 buffer[2][1152];
+  static /*unsigned int*/ UINT32 bit_alloc[2][SBLIMIT], scfsi[2][SBLIMIT];
+  static /*unsigned int*/ UINT32 scalar[2][3][SBLIMIT] /*0~63 UINT8 is enough*/, j_scale[3][SBLIMIT];
+  static /*double*/ INT32 smr[2][SBLIMIT], lgmin[2][SBLIMIT], max_sc[2][SBLIMIT];
   // FLOAT snr32[32];
-  short sam[2][1344];		/* was [1056]; */
-  int model, nch, error_protection;
-  static unsigned int crc;
+  /*short*/ INT16 sam[2][1344];		/* was [1056]; */
+  /*int*/ INT32 model, nch, error_protection;
+  static /*unsigned int*/ /*tbv 16 or 32 bits? */ UINT32 crc;
+  
+	/* TBV: allocate minmum bits for variables */
   int sb, ch, adb;
   unsigned long frameBits, sentBits = 0;
   unsigned long num_samples;
@@ -120,11 +124,21 @@ int main (int argc, char **argv)
   int i;
 
   /* Used to keep the SNR values for the fast/quick psy models */
-  static FLOAT smrdef[2][32];
+  static /*FLOAT*/ INT32 smrdef[2][32];
 
   static int psycount = 0;
   extern int minimum;
+  
+  /*
+   * Test length of gcc data types
+   */
+   printf("sizeof(int) = %d\n", sizof(int));
+   printf("sizeof(long) = %d\n", sizof(long));
+   printf("sizeof(short) = %d\n", sizof(short));
+   printf("sizeof(long long) = %d\n", sizof(long long));
+   printf("sizeof(char) = %d\n", sizof(char));
 
+	
   sb_sample = (SBS *) mem_alloc (sizeof (SBS), "sb_sample");
   j_sample = (JSBS *) mem_alloc (sizeof (JSBS), "j_sample");
   win_que = (IN *) mem_alloc (sizeof (IN), "Win_que");
@@ -204,7 +218,7 @@ int main (int argc, char **argv)
 		for ( ch = 0; ch < nch; ch++ )
 
 		WindowFilterSubband( &buffer[ch][gr * 12 * 32 + 32 * bl]/*IN*/, ch/*IN*/,
-				 &(*sb_sample)[ch][gr][bl][0] /*OUT double */ );
+				 &(*sb_sample)[ch][gr][bl][0] /*OUT */ );
 
 		printf("After filtering and windowing:\n");
 		for( ch = 0; ch < 2; ch++ ){

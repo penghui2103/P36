@@ -81,7 +81,37 @@ double scalefactor[64] = { /* Equation for nth element = 2 / (cuberoot(2) ^ n) *
   0.00000240310869, 0.00000190734863, 0.00000151386361, 0.00000120155435,
   1E-20
 };
+/* CPH: same as above
+double multiple[64] = {
+  2.00000000000000, 1.58740105196820, 1.25992104989487,
+  1.00000000000000, 0.79370052598410, 0.62996052494744, 0.50000000000000,
+  0.39685026299205, 0.31498026247372, 0.25000000000000, 0.19842513149602,
+  0.15749013123686, 0.12500000000000, 0.09921256574801, 0.07874506561843,
+  0.06250000000000, 0.04960628287401, 0.03937253280921, 0.03125000000000,
+  0.02480314143700, 0.01968626640461, 0.01562500000000, 0.01240157071850,
+  0.00984313320230, 0.00781250000000, 0.00620078535925, 0.00492156660115,
+  0.00390625000000, 0.00310039267963, 0.00246078330058, 0.00195312500000,
+  0.00155019633981, 0.00123039165029, 0.00097656250000, 0.00077509816991,
+  0.00061519582514, 0.00048828125000, 0.00038754908495, 0.00030759791257,
+  0.00024414062500, 0.00019377454248, 0.00015379895629, 0.00012207031250,
+  0.00009688727124, 0.00007689947814, 0.00006103515625, 0.00004844363562,
+  0.00003844973907, 0.00003051757813, 0.00002422181781, 0.00001922486954,
+  0.00001525878906, 0.00001211090890, 0.00000961243477, 0.00000762939453,
+  0.00000605545445, 0.00000480621738, 0.00000381469727, 0.00000302772723,
+  0.00000240310869, 0.00000190734863, 0.00000151386361, 0.00000120155435,
+  1E-20
+};
+*/
 
+INT32 fixed_scalefactor[64];
+static void create_fixed_scalefactor(double sf[64], INT32 fsf[64])
+{
+	int i; 
+	for(i = 0; i < 64; i++) {
+		//CPH: e.g. 15 + 18 - 16, but 26~28 are good choice to keep accuracy
+		fixed_scalefactor[i] = scalefactor[i] * (2^ (SCALE_SHIFT  + WIN_COEFF_SHIFT - WIN_FILTER_RESULT_SHIFT));
+	}
+}
 /* ISO11172 Table C.5 Layer II Signal to Noise Raios 
    MFC FIX find a reference for these in terms of bits->SNR value
    Index into table is the steps index 
@@ -176,10 +206,14 @@ int encode_init(frame_info *frame) {
 */
 
 
-void scalefactor_calc_new (double sb_sample[][3][SCALE_BLOCK][SBLIMIT],
-			unsigned int sf_index[][3][SBLIMIT], int nch,
+void scalefactor_calc_new (INT32 sb_sample[][3][SCALE_BLOCK][SBLIMIT],
+			UINT32 sf_index[][3][SBLIMIT], int nch,
 			int sblimit)
 {
+	static int init = 0;
+	if(init == 0) {
+			create_fixed_scalefactor(double sf[64], INT32 fsf[64]);
+	}
   /* Optimized to use binary search instead of linear scan through the
      scalefactor table; guarantees to find scalefactor in only 5
      jumps/comparisons and not in {0 (lin. best) to 63 (lin. worst)}.
@@ -195,25 +229,25 @@ void scalefactor_calc_new (double sb_sample[][3][SCALE_BLOCK][SBLIMIT],
       for (sb = sblimit; sb--;) {
 	int j;
 	unsigned int l;
-	register double temp;
-	unsigned int scale_fac;
+	INT32 temp;
+	UINT32 scale_fac;
 	/* Determination of max. over each set of 12 subband samples:  */
 	/* PDS TODO: maybe this could/should ??!! be integrated into   */
 	/* the subband filtering routines?                             */
-	register double cur_max = fabs (sb_sample[ch][gr][SCALE_BLOCK - 1][sb]);
+	register INT32 cur_max = abs (sb_sample[ch][gr][SCALE_BLOCK - 1][sb]);
 	for (j = SCALE_BLOCK - 1; j--;) {
-	  if ((temp = fabs (sb_sample[ch][gr][j][sb])) > cur_max)
+	  if ((temp = abs (sb_sample[ch][gr][j][sb])) > cur_max)
 	    cur_max = temp;
 	}
 	/* PDS: binary search in the scalefactor table: */
 	/* This is the real speed up: */
 	for (l = 16, scale_fac = 32; l; l >>= 1) {
-	  if (cur_max <= scalefactor[scale_fac])
+	  if (cur_max <= fixed_scalefactor[scale_fac])
 	    scale_fac += l;
 	  else
 	    scale_fac -= l;
 	}
-	if (cur_max > scalefactor[scale_fac])
+	if (cur_max > fixed_scalefactor[scale_fac])
 	  scale_fac--;
 	sf_index[ch][gr][sb] = scale_fac;
 	/* There is a direct way of working out the index, if the 
@@ -257,8 +291,8 @@ void combine_LR_new (double sb_sample[2][3][SCALE_BLOCK][SBLIMIT],
 
    MFC FIX: Feb 2003 - is this only needed for psy model 1?
 */
-void find_sf_max (unsigned int sf_index[2][3][SBLIMIT], frame_info * frame,
-		 double sf_max[2][SBLIMIT])
+void find_sf_max (UINT32 sf_index[2][3][SBLIMIT], frame_info * frame,
+		 INT32 sf_max[2][SBLIMIT])
 {
   int sb, gr, ch;
   int lowest_sf_index;
@@ -270,10 +304,10 @@ void find_sf_max (unsigned int sf_index[2][3][SBLIMIT], frame_info * frame,
       for (gr = 1, lowest_sf_index = sf_index[ch][0][sb]; gr < 3; gr++)
 	if (lowest_sf_index > sf_index[ch][gr][sb])
 	  lowest_sf_index = sf_index[ch][gr][sb];
-      sf_max[ch][sb] = multiple[lowest_sf_index];
+      sf_max[ch][sb] = fixed_scalefactor[lowest_sf_index];
     }
   for (sb = sblimit; sb < SBLIMIT; sb++)
-    sf_max[0][sb] = sf_max[1][sb] = 1E-20;
+    sf_max[0][sb] = sf_max[1][sb] = 0; // CPH: 0 or 1 which one is the least ?? 1E-20;
 }
 
 /*  sf_transmission_pattern  

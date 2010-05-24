@@ -2,6 +2,7 @@
 
 void  WindowFilterSubband( short *pBuffer, int ch, double s[SBLIMIT] );
 void create_dct_matrix (double filter[16][32]);
+void void create_fixed_enwindow(double enw[512], INT32 fixedenw[512]);
 
 #ifdef REFERENCECODE
 void window_subband (short **buffer, double z[64], int k);
