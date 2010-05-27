@@ -24,7 +24,7 @@
    Feel free to make any sort of generic change you want. Add or subtract numbers, take
    logs, whatever. Fiddle with the numbers until we get a good SMR output */
 
-void psycho_0(double SMR[2][SBLIMIT], int nch, unsigned int scalar[2][3][SBLIMIT], FLOAT sfreq) {
+void psycho_0(INT32 SMR[2][SBLIMIT], int nch, unsigned int scalar[2][3][SBLIMIT], INT32 sfreq) {
   int ch, sb, gr;
   int minscaleindex[2][SBLIMIT]; /* Smaller scale indexes mean bigger scalefactors */
   static FLOAT ath_min[SBLIMIT];

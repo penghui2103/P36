@@ -2,7 +2,43 @@
 #include <math.h>
 #include "common.h"
 #include "ath.h"
+/*
+clear;
+format('long');
+sample_freq=[48000, 32000, 24000, 16000];
+ath_min=1000*ones(128,1);
 
+for sfreq=1:4
+    freq_line=sample_freq(sfreq)/1024;
+    for i=0:31
+        ath_16=zeros(16,1);
+        for j=0:15
+            thisfreq = freq_line*(i*32+j);
+            thisfreq = thisfreq/1000;
+            if thisfreq <=0.01 
+                thisfreq = 0.01;
+            elseif thisfreq >= 18.0
+                thisfreq = 18.0;
+            end
+            
+            ath_16(j+1,1)= 3.64*power(thisfreq, -0.8) ...
+                - 6.8*exp(-0.6*power(thisfreq-3.4, 2))...
+                + 6.0*exp(-0.15*power(thisfreq-8.7, 2))...
+                + 0.6*0.001*power(thisfreq,4);
+        end 
+        ath_min((sfreq-1)*32+i+1,1)=min(ath_16);
+    end
+end
+ath_min_int=round(ath_min*2^25);
+ath_min_composite=zeros(128,1);
+for x=1:128
+    if ath_min_int(x)>=0
+        ath_min_composite(x)=ath_min_int(x);
+    else
+        ath_min_composite(x)=2^32+ath_min_int(x);
+    end
+end
+*/
   /* freq in hz */
 FLOAT8 ATH_dB(FLOAT8 f, FLOAT8 value)
 {

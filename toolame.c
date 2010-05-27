@@ -43,6 +43,11 @@ void global_init (void)
   glopts.verbosity = 2;
 }
 
+
+/* 2010-05-27 shen 说:
+ 现在做得有所扩充，16k/24k/32k/48k；单声道/双声道；所有的速率
+*/
+
 /************************************************************************
 *
 * main
@@ -296,7 +301,7 @@ int main (int argc, char **argv)
 	psycho_n1 (smr, nch);
 	break;
       case 0:	/* Psy Model A */
-	psycho_0 (smr /*OUT*/, nch, scalar, (FLOAT) s_freq[header.version][header.sampling_frequency] * 1000);
+	psycho_0 (smr /*OUT*/, nch, scalar, fixed_s_freq[header.version][header.sampling_frequency]);
 	DbgPrintDoubleMatrix(smr, 2, SBLIMIT);
 	break;
       case 1:

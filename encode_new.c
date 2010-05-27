@@ -212,7 +212,8 @@ void scalefactor_calc_new (INT32 sb_sample[][3][SCALE_BLOCK][SBLIMIT],
 {
 	static int init = 0;
 	if(init == 0) {
-			create_fixed_scalefactor(double sf[64], INT32 fsf[64]);
+			create_fixed_scalefactor(scalefactor, fixed_scalefactor);
+			init = 1;
 	}
   /* Optimized to use binary search instead of linear scan through the
      scalefactor table; guarantees to find scalefactor in only 5
@@ -268,15 +269,15 @@ INLINE double mod (double a)
 }
 
 /* Combine L&R channels into a mono joint stereo channel */
-void combine_LR_new (double sb_sample[2][3][SCALE_BLOCK][SBLIMIT],
-		     double joint_sample[3][SCALE_BLOCK][SBLIMIT], int sblimit) {
+void combine_LR_new (INT32 sb_sample[2][3][SCALE_BLOCK][SBLIMIT],
+		     INT32 joint_sample[3][SCALE_BLOCK][SBLIMIT], int sblimit) {
   int sb, sample, gr;
 
   for (sb = 0; sb < sblimit; ++sb)
     for (sample = 0; sample < SCALE_BLOCK; ++sample)
       for (gr = 0; gr < 3; ++gr)
 	joint_sample[gr][sample][sb] =
-	  .5 * (sb_sample[0][gr][sample][sb] + sb_sample[1][gr][sample][sb]);
+	  (sb_sample[0][gr][sample][sb] + sb_sample[1][gr][sample][sb]) >> 1; //CPH: divide by 2
 }
 
 /* PURPOSE:For each subband, puts the smallest scalefactor of the 3
