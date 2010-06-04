@@ -186,3 +186,58 @@ void  DbgPrintIntMatrix(short int x[1][2], int m, int n)
 	}
 #endif
 }   
+
+/*
+#include <stdio.h>
+#include <stdlib.h>
+
+	int aw[10][10]={{1,2,3,4,5,6,7,8,9,10},{1,2,1,2,3,1,2,1,2,1},{0},{9},{9},{7},{5},{4},{3},{2}};
+	int ay[3][2] = { {1,2},{3,4},{5,6}};
+	int az[5][1] = {{5},{4},{3},{2},{1}};
+	int ax[1][4] = {1,2,3,4};
+
+
+int main ()
+{
+	char ch;
+	DbgPrintIntArrayToFile(&ay[0][0], 3, 2, "test.txt","array");
+	DbgPrintIntArrayToFile(az, 5,1,NULL, "az");
+	DbgPrintIntArrayToFile(ax, 1,4, NULL, "zx");
+	DbgPrintIntArrayToFile(aw,10,10,"test.txt","aw");
+
+	while((ch = getchar()) != '\n');
+	return 0;
+}
+*/
+
+void DbgPrintIntArrayToFile(int* array, int row, int col, char *file_name, char *array_name)
+{
+	int i,j;
+	FILE* fp;
+	if(file_name == NULL) {
+		fp = stdout;
+	} else {
+		if((fp = fopen(file_name, "a+")) == NULL) {
+			fp = stdout;
+		}
+	}
+
+	fprintf(fp, "/* Auto generated array, don't modify it please!*/\n");
+	fprintf(fp, "int %s[%d][%d] = {\n",array_name, row, col);
+	for(i=0;i<row;i++)  
+	{
+		fprintf(fp, "{");
+		for(j=0;j<col;j++) {
+			fprintf(fp, "%d",*(array+i*col+j)); 
+			if(j < col -1) {
+				fprintf(fp, ", ");
+			}
+		}
+		fprintf(fp, "}");
+		if(i < row -1)
+			fprintf(fp, ",\n");  
+	}
+	fprintf(fp, "\n};\n\n");
+	if(fp != stdout)
+		fclose(fp);
+}

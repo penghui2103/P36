@@ -473,7 +473,7 @@ int main (int argc, char **argv)
     }
 
     sentBits += frameBits;
-  }
+  } //END of encoding loop
 
   close_bit_stream_w (&bs);
 

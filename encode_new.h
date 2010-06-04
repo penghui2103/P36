@@ -26,9 +26,9 @@ void write_scalefactors (unsigned int bit_alloc[2][SBLIMIT],
 			 Bit_stream_struc * bs);
 
 void subband_quantization_new (unsigned int sf_index[2][3][SBLIMIT],
-		      double sb_samples[2][3][SCALE_BLOCK][SBLIMIT],
+		      INT32 sb_samples[2][3][SCALE_BLOCK][SBLIMIT],
 		      unsigned int j_scale[3][SBLIMIT],
-		      double j_samps[3][SCALE_BLOCK][SBLIMIT],
+		      INT32 j_samps[3][SCALE_BLOCK][SBLIMIT],
 		      unsigned int bit_alloc[2][SBLIMIT],
 		      unsigned int sbband[2][3][SCALE_BLOCK][SBLIMIT],
 			  frame_info * frame);
@@ -55,9 +55,9 @@ VBR_bit_allocation_new (double SMR[2][SBLIMIT],
 		    unsigned int scfsi[2][SBLIMIT],
 		    unsigned int bit_alloc[2][SBLIMIT], int *adb,
 		    frame_info * frame, options * glopts);
-void maxmnr_new (double mnr[2][SBLIMIT], char used[2][SBLIMIT], int sblimit,
+void maxmnr_new (INT32 mnr[2][SBLIMIT], char used[2][SBLIMIT], int sblimit,
 	     int nch, int *min_sb, int *min_ch);
-int a_bit_allocation_new (double SMR[2][SBLIMIT],
+int a_bit_allocation_new (INT32 SMR[2][SBLIMIT],
 		      unsigned int scfsi[2][SBLIMIT],
 		      unsigned int bit_alloc[2][SBLIMIT], int *adb,
 		      frame_info * frame);

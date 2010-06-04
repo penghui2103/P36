@@ -23,29 +23,46 @@
 
    Feel free to make any sort of generic change you want. Add or subtract numbers, take
    logs, whatever. Fiddle with the numbers until we get a good SMR output */
+static INT32 fixed_ath_min[SUPPORTED_SFREQ_NUM][SBLIMIT];
 
+static void create_fixed_ath_min(INT32 ath_table[SUPPORTED_SFREQ_NUM][SBLIMIT])
+{
+	int i, j, K;
+	INT32 ath_min[SBLIMIT];
+	for(j = 0; j< SUPPORTED_SFREQ_NUM; j++ ) {
+		FLOAT freqperline = fixed_s_freq[NO_OF_SFREQ_WE_SUPPORT][j]/1024.0;
+		for (sb=0;sb<SBLIMIT;sb++) {
+		 ath_min[sb] = (2^MNR_SMR_DB_SHIFT); /* set it huge */
+		}
+		
+		/* Find the minimum ATH in each subband */
+		for (i=0;i<512;i++) {
+			FLOAT thisfreq = i * freqperline;
+			INT32 ath_val = (2^MNR_SMR_DB_SHIFT)*ATH_dB(thisfreq, 0);
+			if (ath_val < ath_min[i>>4])
+				ath_min[i>>4] = ath_val;
+		}
+		
+		/* save the value to fixed_ath_min */
+		for(k = 0; k<SBLIMIT; k++)
+			fixed_ath_min[j][k] = ath_min[k];
+	}		
+}
 void psycho_0(INT32 SMR[2][SBLIMIT], int nch, unsigned int scalar[2][3][SBLIMIT], INT32 sfreq) {
   int ch, sb, gr;
-  int minscaleindex[2][SBLIMIT]; /* Smaller scale indexes mean bigger scalefactors */
-  static FLOAT ath_min[SBLIMIT];
-  int i;
+  INT32 minscaleindex[2][SBLIMIT]; /* Smaller scale indexes mean bigger scalefactors */
+  int i,index;
   static int init=0;
 
   if (!init) {
-    FLOAT freqperline = sfreq/1024.0;
-    for (sb=0;sb<SBLIMIT;sb++) {
-      ath_min[sb] = 1000; /* set it huge */
-    }
-    
-    /* Find the minimum ATH in each subband */
-    for (i=0;i<512;i++) {
-      FLOAT thisfreq = i * freqperline;
-      FLOAT ath_val = ATH_dB(thisfreq, 0);
-      if (ath_val < ath_min[i>>4])
-	ath_min[i>>4] = ath_val;
-    }
-    init++;
+	create_fixed_ath_min(fixed_ath_min);
+    init=1;
   }
+	index = 0;
+	for(i=0; i< SUPPORTED_SFREQ_NUM, i++) {
+		if(sfreq == fixed_s_freq[NO_OF_SFREQ_WE_SUPPORT][i])
+			index = i;
+	}
 
   /* Find the minimum scalefactor index for each ch/sb */
   for (ch=0;ch<nch;ch++) 
@@ -65,5 +82,6 @@ void psycho_0(INT32 SMR[2][SBLIMIT], int nch, unsigned int scalar[2][3][SBLIMIT]
      MFC Mar 03 */
   for (ch=0;ch<nch;ch++)
     for (sb=0;sb<SBLIMIT;sb++)
-      SMR[ch][sb] = 2.0 * (30.0 - minscaleindex[ch][sb]) - ath_min[sb];
+      //SMR[ch][sb] = 2.0 * (30.0 - minscaleindex[ch][sb]) - ath_min[sb];
+      SMR[ch][sb] = 2^(MNR_SMR_DB_SHIFT+1) * (30 - minscaleindex[ch][sb]) - fixed_ath_min[index][sb];
 }

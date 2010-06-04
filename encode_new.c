@@ -128,6 +128,14 @@ static double SNR[18] = { 0.00, 7.00, 11.00, 16.00, 20.84,
   49.89, 55.93, 61.96, 67.98, 74.01,
   80.03, 86.05, 92.01, 98.01
 };
+static INT32 fixed_SNR[18];
+
+void create_fixed_SNR(INT32 fsnr[18)
+{
+	int i;
+	for(int i = 0; i<18;i++) 
+		fixed_SNR[i] = (2^MNR_SMR_DB_SHIFT)*SNR[i];
+}
 
 int tablenum=0;
 
@@ -480,6 +488,8 @@ void write_scalefactors (unsigned int bit_alloc[2][SBLIMIT],
 
 
 /* ISO11172 Table C.6 Layer II quantization co-efficients */
+//CPH: Table 3-B.4. Layer II classes of quantization: C = 1/a; but b is not related with D
+//It is my mistake, the correspoding table should be TABLE 3-C.6: LAYER II QUANTIZATION COEFFICIENTS.
 static double a[18] = {
   0, 
   0.750000000, 0.625000000, 0.875000000, 0.562500000, 0.937500000,
@@ -488,6 +498,8 @@ static double a[18] = {
   0.999969482, 0.999984741
 };
 
+static INT32 fixed_a[18];
+
 static double b[18] = {
   0,
   -0.250000000, -0.375000000, -0.125000000, -0.437500000, -0.062500000,
@@ -495,6 +507,8 @@ static double b[18] = {
   -0.000976563, -0.000488281, -0.000244141, -0.000122070, -0.000061035,
   -0.000030518, -0.000015259
 };
+
+static INT32 fixed_b[18];
 
 /************************************************************************
    subband_quantization (Layer II)
@@ -513,9 +527,9 @@ static double b[18] = {
 ************************************************************************/
 void
 subband_quantization_new (unsigned int sf_index[2][3][SBLIMIT],
-		      double sb_samples[2][3][SCALE_BLOCK][SBLIMIT],
+		      INT32 sb_samples[2][3][SCALE_BLOCK][SBLIMIT],
 		      unsigned int j_scale[3][SBLIMIT],
-		      double j_samps[3][SCALE_BLOCK][SBLIMIT],
+		      INT32 j_samps[3][SCALE_BLOCK][SBLIMIT],
 		      unsigned int bit_alloc[2][SBLIMIT],
 		      unsigned int sbband[2][3][SCALE_BLOCK][SBLIMIT],
 		      frame_info * frame)
@@ -534,9 +548,9 @@ subband_quantization_new (unsigned int sf_index[2][3][SBLIMIT],
 	  if (bit_alloc[ch][sb]) {
 	    /* scale and quantize FLOATing point sample */
 	    if (nch == 2 && sb >= jsbound)	/* use j-stereo samples */
-	      d = j_samps[gr][j][sb] / scalefactor[j_scale[gr][sb]];
+	      d = j_samps[gr][j][sb];//CPH: fixed point / scalefactor[j_scale[gr][sb]];
 	    else
-	      d = sb_samples[ch][gr][j][sb] / scalefactor[sf_index[ch][gr][sb]];
+	      d = sb_samples[ch][gr][j][sb]; //CPH: fixed point / scalefactor[sf_index[ch][gr][sb]];
 
 	    /* Check that the wrong scale factor hasn't been chosen -
 	       which would result in a scaled sample being > 1.0 
@@ -555,17 +569,17 @@ subband_quantization_new (unsigned int sf_index[2][3][SBLIMIT],
 	      /* Find the "step index" within that line */
 	      qnt_coeff_index = step_index[index][bit_alloc[ch][sb]];
 	    }
-	    d = d * a[qnt_coeff_index] + b[qnt_coeff_index];
+	    d = (d * fixed_a[qnt_coeff_index] + fixed_b[qnt_coeff_index]);
 
 	    /* extract MSB N-1 bits from the FLOATing point sample */
 	    if (d >= 0)
 	      sig = 1;
 	    else {
 	      sig = 0;
-	      d += 1.0;
+	      d += 1; //CPH: 1.0;
 	    }
 
-	    sbband[ch][gr][j][sb] = (unsigned int) (d * (double)steps2n[qnt_coeff_index]);
+	    sbband[ch][gr][j][sb] = (unsigned int) ((d * steps2n[qnt_coeff_index]) >> (AB_COEEF_SHIFT + WIN_FILTER_RESULT_SHIFT ));  //CPH: fixme if the shift is too big??;
 	    /* tag the inverted sign bit to sbband at position N */
 	    /* The bit inversion is a must for grouping with 3,5,9 steps
 	       so it is done for all subbands */
@@ -765,7 +779,7 @@ int bits_for_nonoise_new (double SMR[2][SBLIMIT],
 *     This function calls *_bits_for_nonoise() and *_a_bit_allocation().
 *
 ************************************************************************/
-void main_bit_allocation_new (double SMR[2][SBLIMIT],
+void main_bit_allocation_new (INT32 SMR[2][SBLIMIT],
 			      unsigned int scfsi[2][SBLIMIT],
 			      unsigned int bit_alloc[2][SBLIMIT], int *adb,
 			      frame_info * frame, options * glopts)
@@ -814,7 +828,7 @@ void main_bit_allocation_new (double SMR[2][SBLIMIT],
       if (frame->actual_mode == MPG_MD_MONO)
 	nch = 1;
       sfreq = header->sampling_frequency;
-      lower = vbrlimits[nch-1][sfreq][0];
+      lower = vbrlimits[nch-1][sfreq][0]; //CPH: don't care this if no VBR is supported.
       upper = vbrlimits[nch-1][sfreq][1];
     }
     if (glopts->verbosity > 2)
@@ -828,8 +842,7 @@ void main_bit_allocation_new (double SMR[2][SBLIMIT],
       frame_header *header = frame->header;
       for (brindex = lower; brindex <= upper; brindex++) {
 	bitrateindextobits[brindex] =
-	  (int) (1152.0 / s_freq[header->version][header->sampling_frequency]) *
-	  ((double) bitrate[header->version][brindex]);
+	  (int) (1152000 * bitrate[header->version][brindex] / fixed_s_freq[header->version][header->sampling_frequency]);
       }
     }
 
@@ -855,6 +868,7 @@ void main_bit_allocation_new (double SMR[2][SBLIMIT],
 
   /* decide on which bit allocation method to use */
   if (glopts->vbr == FALSE) {
+	  //CPH: do not support VBR
     /* Just do the old bit allocation method */
     noisy_sbs = a_bit_allocation_new (SMR, scfsi, bit_alloc, adb, frame);
   } else {			
@@ -1097,9 +1111,9 @@ void maxmnr_new (double mnr[2][SBLIMIT], char used[2][SBLIMIT], int sblimit,
 	     int nch, int *min_sb, int *min_ch)
 {
   int sb, ch;
-  double small;
+  INT32 small;
 
-  small = 999999.0;
+  small = 2^MNR_SMR_DB_SHIFT;
   *min_sb = -1;
   *min_ch = -1;
   for (ch = 0; ch < nch; ++ch)
@@ -1110,7 +1124,7 @@ void maxmnr_new (double mnr[2][SBLIMIT], char used[2][SBLIMIT], int sblimit,
 	*min_ch = ch;
       }
 }
-int a_bit_allocation_new (double SMR[2][SBLIMIT],
+int a_bit_allocation_new (INT32 SMR[2][SBLIMIT],
 			    unsigned int scfsi[2][SBLIMIT],
 			    unsigned int bit_alloc[2][SBLIMIT], int *adb,
 			    frame_info * frame)
@@ -1144,7 +1158,7 @@ int a_bit_allocation_new (double SMR[2][SBLIMIT],
 
   for (sb = 0; sb < sblimit; sb++)
     for (ch = 0; ch < nch; ch++) {
-      mnr[ch][sb] = SNR[0] - SMR[ch][sb];
+      mnr[ch][sb] = fixed_SNR[0] - SMR[ch][sb];
       bit_alloc[ch][sb] = 0;
       used[ch][sb] = 0;
     }
@@ -1191,7 +1205,7 @@ int a_bit_allocation_new (double SMR[2][SBLIMIT],
 	bsel += seli;		/* bits for scfsi code */
 	used[min_ch][min_sb] = 1;	/* subband has bits */
 	thisstep_index = step_index[thisline][ba];
-	mnr[min_ch][min_sb] = SNR[thisstep_index] - SMR[min_ch][min_sb];
+	mnr[min_ch][min_sb] = fixed_SNR[thisstep_index] - SMR[min_ch][min_sb];
 	/* Check if this min_sb subband has been fully allocated max bits */
 	if (ba >= (1 << nbal[ line[tablenum][min_sb] ]) -1 ) //(*alloc)[min_sb][0].bits) - 1)
 	  used[min_ch][min_sb] = 2;	/* don't let this sb get any more bits */
@@ -1203,7 +1217,7 @@ int a_bit_allocation_new (double SMR[2][SBLIMIT],
 	ba = bit_alloc[oth_ch][min_sb] = bit_alloc[min_ch][min_sb];
 	used[oth_ch][min_sb] = used[min_ch][min_sb];
 	thisstep_index = step_index[thisline][ba];
-	mnr[oth_ch][min_sb] = SNR[thisstep_index] - SMR[oth_ch][min_sb];
+	mnr[oth_ch][min_sb] = fixed_SNR[thisstep_index] - SMR[oth_ch][min_sb];
 	//mnr[oth_ch][min_sb] = SNR[(*alloc)[min_sb][ba].quant + 1] - SMR[oth_ch][min_sb];
       }
 
